@@ -7,11 +7,17 @@ Project {
         name: "sharedmem"
         files: [
             "src/shalloc.c",
-            "include/sharedmem/shalloc.h",
-            "src/buffer.c",
-            "include/sharedmem/buffer.h"
+            "src/buffer.c"
         ]
 
+        Group {
+            qbs.install: true
+            qbs.installDir: "/usr/include/sharedmem"
+            files: [
+                "include/sharedmem/shalloc.h",
+                "include/sharedmem/buffer.h"
+            ]
+        }
         Group {
             fileTagsFilter: product.type
             qbs.install: true

@@ -20,10 +20,10 @@ typedef struct {
 
 int main () {
   printf("shared memory read\n");
-  init_link_shared_mem(1024, "my_buf");
+  shared_mem_t *mem = init_link_shared_mem(1024, "my_buf");
 
   int i;
-  pre_t *fbl = (pre_t *)get_first_block_mem();
+  pre_t *fbl = (pre_t *)get_first_block_mem(mem);
   for ( i=0; i<100; i++ ) {
     pthread_mutex_lock(&fbl->mutex);
     while( !fbl->read && fbl->active )
@@ -32,13 +32,13 @@ int main () {
       printf("lock fail!\n");
       break;
     }
-    test_t *ptr = fix_pointer(fbl->read);
+    test_t *ptr = fix_ptr_to(test_t, mem, fbl->read);
     fbl->read = ptr->next;
     printf("test string %s, %d, %d\n", ptr->name, ptr->number, ptr->second);
-    free_shared_mem(ptr);
+    free_shared_mem(mem, ptr);
     pthread_mutex_unlock(&fbl->mutex);
   }
 
-  close_link_shared_mem();
+  close_link_shared_mem(mem);
   return 0;
 }

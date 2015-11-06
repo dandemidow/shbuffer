@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <pthread.h>
 #include "sharedmem/shalloc.h"
 
@@ -20,7 +21,7 @@ typedef struct {
 
 int main () {
   printf("shared memory test\n");
-  init_shared_mem(1024, "my_buf");
+  shared_mem_t *mem = init_shared_mem(1024, "my_buf");
 
   pthread_mutexattr_t mta;
   pthread_mutexattr_init(&mta);
@@ -31,7 +32,7 @@ int main () {
   pthread_condattr_setpshared(&cta, PTHREAD_PROCESS_SHARED);
 
   int i=0;
-  pre_t *pre = (pre_t*)alloc_shared_mem(sizeof(pre_t));
+  pre_t *pre = (pre_t*)alloc_shared_mem(mem, sizeof(pre_t));
   pre->read = NULL;
   pre->write = NULL;
   pthread_mutex_init(&pre->mutex, &mta);
@@ -41,14 +42,14 @@ int main () {
 
   for ( i =0; i<100; ++i) {
     pthread_mutex_lock(&pre->mutex);
-    test_t *tst = (test_t*)alloc_shared_mem(sizeof(test_t));
+    test_t *tst = (test_t*)alloc_shared_mem(mem, sizeof(test_t));
     if ( !tst ) {
       printf("shalloc error\n");
       break;
     }
     strcpy(tst->name, "hello!");
     tst->number = 0+i;
-    tst->second = 100+i;
+    tst->second = 100-i;
     tst->next = NULL;
     if ( !pre->read ) {
       pre->read = tst;
@@ -61,12 +62,10 @@ int main () {
     pthread_cond_signal(&pre->cond);
     pthread_mutex_unlock(&pre->mutex);
     printf("add value %d\n", i);
-//    sem_getvalue(mem.write_sem, &val);
-//    printf("lock %d %d\n", i, val);
     sleep(1);
   }
   pre->active = 0;
-  wait_shared_client_exit();
-  close_shared_mem();
+  wait_shared_client_exit(mem);
+  close_shared_mem(mem);
   return 0;
 }

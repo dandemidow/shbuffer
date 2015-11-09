@@ -33,6 +33,7 @@ int main () {
 
   int i=0;
   pre_t *pre = (pre_t*)alloc_shared_mem(mem, sizeof(pre_t));
+  tag_shared_mem(mem, (void*)pre, 1);
   pre->read = NULL;
   pre->write = NULL;
   pthread_mutex_init(&pre->mutex, &mta);

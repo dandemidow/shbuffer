@@ -23,7 +23,7 @@ int main () {
   shared_mem_t *mem = init_link_shared_mem(1024, "my_buf");
 
   int i;
-  pre_t *fbl = (pre_t *)get_first_block_mem(mem);
+  pre_t *fbl = (pre_t *)find_tagged_mem(mem, 1);
   for ( i=0; i<100; i++ ) {
     pthread_mutex_lock(&fbl->mutex);
     while( !fbl->read && fbl->active )

@@ -19,8 +19,48 @@ typedef struct {
 #define shared_client(shm) ((shared_stuff(shm))->clients)
 #define shared_protect(shm) (&shared_stuff(shm)->protect)
 
+#define shared_block_for(mem) (shared_mem_block_t *)((mem)-sizeof(shared_mem_block_t))
+#define set_block_tag(block, val) (block)->tag = (val)
+#define set_block_size(block, s) (block)->size = (s)
+#define available_block_on(block) (block)->available = 1;
+#define available_block_off(block) (block)->available = 0;
+
 static shared_mem_block_t *get_first_block(shared_mem_t *shbuf) {
   return (shared_mem_block_t*)(shbuf->addr + sizeof(shared_stuff_t));
+}
+
+static shared_mem_block_t *next_block(shared_mem_t *shbuf, shared_mem_block_t *block) {
+  char *ptr = (char*)block;
+  ptr += sizeof(shared_mem_block_t) + block->size;
+  if ( !shbuf || (size_t)((char*)block - shbuf->addr) < shbuf->buf_size - block->size )
+    return (shared_mem_block_t*)ptr;
+  return NULL;
+}
+
+static shared_mem_block_t *prev_block(shared_mem_t *shbuf, shared_mem_block_t *block) {
+  shared_mem_block_t *base = get_first_block(shbuf);
+  shared_mem_block_t *next = base;
+  if ( base == block ) return NULL;
+  while(next) {
+    next = next_block(shbuf, base);
+    if ( next == block ) return base;
+    base = next;
+  }
+  return NULL;
+}
+
+// log log log
+static void log_shared_block(shared_mem_t *shbuf) {
+  shared_mem_block_t *block = get_first_block(shbuf);
+  printf("------- %d\n", shbuf->buf_size);
+  while ( block ) {
+    printf("block place:%d, available:%d, size:%d\n",
+           (size_t)((char*)block - shbuf->addr),
+           block->available,
+           block->size);
+    block = next_block(shbuf, block);
+  }
+  printf("-------\n");
 }
 
 shared_mem_t *init_shared_mem(size_t buf_size, char *name) {
@@ -37,7 +77,8 @@ shared_mem_t *init_shared_mem(size_t buf_size, char *name) {
   shared_stuff(shbuf)->base = shbuf->base;
   shared_client(shbuf) = 0;
   shared_mem_block_t *first = get_first_block(shbuf);
-  first->availabel = 1;
+  available_block_on(first);
+  set_block_tag(first, 0);
   first->size = shbuf->buf_size - sizeof(shared_mem_block_t);
   pthread_mutex_unlock(shared_protect(shbuf));
   return shbuf;
@@ -69,42 +110,57 @@ int close_link_shared_mem(shared_mem_t *shbuf) {
 
 static void insert_block(shared_mem_block_t *block, int size) {
   short old_size = block->size;
-  block->size = size;
-  block->availabel = 0;
-  char *ptr = (char*)block;
-  ptr+=sizeof(shared_mem_block_t) + size;
-  shared_mem_block_t *nblk = (shared_mem_block_t *)ptr;
-  nblk->availabel = 1;
-  nblk->size = old_size - sizeof(shared_mem_block_t) - size;
+  set_block_size(block, size);
+  available_block_off(block);
+  set_block_tag(block, 0);
+  shared_mem_block_t *nblk = next_block(NULL, block);
+  available_block_on(nblk);
+  set_block_size(nblk, old_size - size - sizeof(shared_mem_block_t));
+}
+
+static shared_mem_block_t *find_shared_block(shared_mem_t *shbuf, size_t size) {
+  shared_mem_block_t *block = get_first_block(shbuf);
+  while ( block ) {
+    if ( block->available && block->size >= size )
+      return block;
+    block = next_block(shbuf, block);
+  }
+  return NULL;
 }
 
 void *alloc_shared_mem(shared_mem_t *shbuf, size_t size) {
-  shared_mem_block_t *block = get_first_block(shbuf);
-  char *ptr = (char *)block;
+  shared_mem_block_t *block;
+
   pthread_mutex_lock(shared_protect(shbuf));
-  while ( (size_t)(ptr - shbuf->addr) < shbuf->buf_size ) {
-    if ( block->availabel && size <= block->size ) {
-      insert_block(block, size);
-      pthread_mutex_unlock(shared_protect(shbuf));
-      return ptr + sizeof(shared_mem_block_t);
-    }
-    ptr += sizeof(shared_mem_block_t) + block->size;
-    block = (shared_mem_block_t *)ptr;
+  block = find_shared_block(shbuf, size);
+  if ( block ) {
+    insert_block(block, size);
+    pthread_mutex_unlock(shared_protect(shbuf));
+//    log_shared_block(shbuf);
+    return ((void*)block) + sizeof(shared_mem_block_t);
   }
   pthread_mutex_unlock(shared_protect(shbuf));
+//  log_shared_block(shbuf);
   return NULL;
 }
 
 int free_shared_mem(shared_mem_t *shbuf, void *mem) {
   pthread_mutex_lock(shared_protect(shbuf));
-  shared_mem_block_t *nblk = (shared_mem_block_t *)(mem-sizeof(shared_mem_block_t));
-  nblk->availabel = 1;
+//  printf("free mem\n");
+  shared_mem_block_t *curr = shared_block_for(mem);
+  shared_mem_block_t *prev = prev_block(shbuf, curr);
+  shared_mem_block_t *next = next_block(shbuf, curr);
+//  printf("prev av:%d, size:%d\n", prev->available, prev->size);
+//  printf("next av:%d, size:%d\n", next->available, next->size);
+  if (next && next->available)
+    set_block_size(curr, curr->size + next->size + sizeof(shared_mem_block_t));
+  if (prev && prev->available)
+    set_block_size(prev, prev->size + curr->size + sizeof(shared_mem_block_t));
+  else
+    available_block_on(curr);
+//  log_shared_block(shbuf);
   pthread_mutex_unlock(shared_protect(shbuf));
   return 0;
-}
-
-void *get_first_block_mem(shared_mem_t *shbuf) {
-  return (void*)((char *)get_first_block(shbuf) + sizeof(shared_mem_block_t));
 }
 
 void wait_shared_client_exit(shared_mem_t *shbuf) {
@@ -118,4 +174,23 @@ void wait_shared_client_exit(shared_mem_t *shbuf) {
     clients = shared_client(shbuf);
     pthread_mutex_unlock(shared_protect(shbuf));
   }
+}
+
+
+void tag_shared_mem(shared_mem_t *shbuf, void *mem, unsigned char tag) {
+  shared_mem_block_t *curr;
+  pthread_mutex_lock(shared_protect(shbuf));
+  curr = shared_block_for(mem);
+  set_block_tag(curr, tag);
+  pthread_mutex_unlock(shared_protect(shbuf));
+}
+
+
+void *find_tagged_mem(shared_mem_t *shbuf, unsigned char tag) {
+  shared_mem_block_t *block = get_first_block(shbuf);
+  while ( block ) {
+    if ( block->tag == tag ) return (void*)((char*)block + sizeof(shared_mem_block_t));
+    block = next_block(shbuf, block);
+  }
+  return NULL;
 }

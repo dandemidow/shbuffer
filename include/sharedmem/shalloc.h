@@ -4,7 +4,8 @@
 #include "sharedmem/buffer.h"
 
 typedef struct {
-  short availabel;
+  unsigned char available;
+  unsigned char tag;
   unsigned size;
 } shared_mem_block_t;
 
@@ -21,6 +22,7 @@ int close_link_shared_mem(shared_mem_t *);
 void *alloc_shared_mem(shared_mem_t *, size_t);
 int free_shared_mem(shared_mem_t *, void *);
 
-void *get_first_block_mem(shared_mem_t *);
+void tag_shared_mem(shared_mem_t *, void *, unsigned char tag);
+void *find_tagged_mem(shared_mem_t *, unsigned char tag);
 
 #endif  // _SHAREDMEM_ALLOC_H_

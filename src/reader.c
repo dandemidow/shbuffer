@@ -32,7 +32,7 @@ int main () {
       printf("lock fail!\n");
       break;
     }
-    test_t *ptr = fix_ptr_to(test_t, mem, fbl->read);
+    test_t *ptr = locl_cast(test_t, mem, fbl->read);
     fbl->read = ptr->next;
     printf("test string %s, %d, %d\n", ptr->name, ptr->number, ptr->second);
     free_shared_mem(mem, ptr);

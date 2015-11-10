@@ -1,6 +1,8 @@
 #ifndef _SHAREDMEM_ALLOC_H_
 #define _SHAREDMEM_ALLOC_H_
 
+#include <stdio.h>
+
 #include "sharedmem/buffer.h"
 
 typedef struct {
@@ -9,8 +11,13 @@ typedef struct {
   unsigned size;
 } shared_mem_block_t;
 
-#define fix_ptr(shbuf, ptr) ((shbuf)->addr + ((char*)(ptr) - (shbuf)->base))
-#define fix_ptr_to(type, shbuf, ptr) (type*)((shbuf)->addr + ((char*)(ptr) - (shbuf)->base))
+inline char *loc_cast_char(shared_mem_t *shbuf, void *ptr);
+inline char *glob_cast_char(shared_mem_t *shbuf, void *ptr);
+#define locl_cast(type, shbuf, ptr) ((type*)(loc_cast_char(shbuf, ptr)))
+#define glob_cast(type, shbuf, ptr) ((type*)(glob_cast_char(shbuf, ptr)))
+
+void shared_mutex_init(pthread_mutex_t *);
+void shared_cond_init(pthread_cond_t *);
 
 shared_mem_t *init_shared_mem(size_t buf_size, char *name);
 shared_mem_t *init_link_shared_mem(size_t buf_size, char *name);

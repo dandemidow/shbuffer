@@ -12,6 +12,7 @@
 static char *get_sem_name(char *name, char *semname) {
   char *sem_name = malloc(strlen(name) + strlen(semname)+2);
   sem_name[0] = '/';
+  sem_name[1] = '\0';
   strcat(sem_name, name);
   strcat(sem_name, semname);
   return sem_name;

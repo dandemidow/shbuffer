@@ -23,21 +23,13 @@ int main () {
   printf("shared memory test\n");
   shared_mem_t *mem = init_shared_mem(1024, "my_buf");
 
-  pthread_mutexattr_t mta;
-  pthread_mutexattr_init(&mta);
-  pthread_mutexattr_setpshared(&mta, PTHREAD_PROCESS_SHARED);
-
-  pthread_condattr_t cta;
-  pthread_condattr_init(&cta);
-  pthread_condattr_setpshared(&cta, PTHREAD_PROCESS_SHARED);
-
   int i=0;
   pre_t *pre = (pre_t*)alloc_shared_mem(mem, sizeof(pre_t));
   tag_shared_mem(mem, (void*)pre, 1);
   pre->read = NULL;
   pre->write = NULL;
-  pthread_mutex_init(&pre->mutex, &mta);
-  pthread_cond_init(&pre->cond, &cta);
+  shared_mutex_init(&pre->mutex);
+  shared_cond_init(&pre->cond);
   pre->active = 1;
   test_t *last;
 

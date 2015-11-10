@@ -63,15 +63,26 @@ static void log_shared_block(shared_mem_t *shbuf) {
   printf("-------\n");
 }
 
+void shared_mutex_init(pthread_mutex_t *mtx) {
+  pthread_mutexattr_t mta;
+  pthread_mutexattr_init(&mta);
+  pthread_mutexattr_setpshared(&mta, PTHREAD_PROCESS_SHARED);
+  pthread_mutex_init(mtx, &mta);
+}
+
+void shared_cond_init(pthread_cond_t *cond) {
+  pthread_condattr_t cta;
+  pthread_condattr_init(&cta);
+  pthread_condattr_setpshared(&cta, PTHREAD_PROCESS_SHARED);
+  pthread_cond_init(cond, &cta);
+}
+
 shared_mem_t *init_shared_mem(size_t buf_size, char *name) {
   shared_mem_t *shbuf = malloc(sizeof(shared_mem_t));
   init_shared_buffer(shbuf, buf_size, name);
   shbuf->base = shbuf->addr;
 
-  pthread_mutexattr_t mta;
-  pthread_mutexattr_init(&mta);
-  pthread_mutexattr_setpshared(&mta, PTHREAD_PROCESS_SHARED);
-  pthread_mutex_init(shared_protect(shbuf), &mta);
+  shared_mutex_init(shared_protect(shbuf));
 
   pthread_mutex_lock(shared_protect(shbuf));
   shared_stuff(shbuf)->base = shbuf->base;
@@ -130,23 +141,22 @@ static shared_mem_block_t *find_shared_block(shared_mem_t *shbuf, size_t size) {
 
 void *alloc_shared_mem(shared_mem_t *shbuf, size_t size) {
   shared_mem_block_t *block;
-
   pthread_mutex_lock(shared_protect(shbuf));
   block = find_shared_block(shbuf, size);
   if ( block ) {
     insert_block(block, size);
     pthread_mutex_unlock(shared_protect(shbuf));
 //    log_shared_block(shbuf);
-    return ((void*)block) + sizeof(shared_mem_block_t);
+    return (((void*)block) + sizeof(shared_mem_block_t));
   }
   pthread_mutex_unlock(shared_protect(shbuf));
+//  printf("not enough memory\n");
 //  log_shared_block(shbuf);
   return NULL;
 }
 
 int free_shared_mem(shared_mem_t *shbuf, void *mem) {
   pthread_mutex_lock(shared_protect(shbuf));
-//  printf("free mem\n");
   shared_mem_block_t *curr = shared_block_for(mem);
   shared_mem_block_t *prev = prev_block(shbuf, curr);
   shared_mem_block_t *next = next_block(shbuf, curr);
@@ -193,4 +203,12 @@ void *find_tagged_mem(shared_mem_t *shbuf, unsigned char tag) {
     block = next_block(shbuf, block);
   }
   return NULL;
+}
+
+char *loc_cast_char(shared_mem_t *shbuf, void *ptr) {
+  return ptr?(shbuf->addr + ((char*)ptr - shbuf->base)):NULL;
+}
+
+char *glob_cast_char(shared_mem_t *shbuf, void *ptr) {
+  return ptr?(shbuf->base + ((char*)ptr - shbuf->addr)):NULL;
 }

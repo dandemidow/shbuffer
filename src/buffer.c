@@ -41,6 +41,15 @@ int init_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name) {
     fprintf(stderr, "exit sem open error\n");
     return -1;
   }
+  int sem_val;
+  do {
+    if ( sem_getvalue(shm->exit_sem, &sem_val) < 0 ) {
+      fprintf(stderr, "exit sem init error\n");
+      return -1;
+    }
+    if ( sem_val ) sem_wait(shm->exit_sem);
+  } while (sem_val != 0);
+
   shm->shm_fd = shm_open(shm->buf_name, O_CREAT|O_RDWR, 0777);
   if ( shm->shm_fd < 0 ) {
     fprintf(stderr, "shm open error\n");
@@ -60,6 +69,7 @@ int init_link_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name) {
     fprintf(stderr, "exit sem open error\n");
     return -1;
   }
+
   shm->shm_fd = shm_open(shm->buf_name, O_RDWR, 0777);
   if ( shm->shm_fd < 0 ) {
     fprintf(stderr, "shm open error\n");
@@ -96,6 +106,7 @@ int close_shared_buffer(shared_mem_t *shm) {
 int close_link_shared_buffer(shared_mem_t *shm) {
   close_shared_core(shm);
   sem_post(shm->exit_sem);
+//  printf("sem post after\n");
   if ( sem_close(shm->exit_sem) < 0 ) {
     fprintf(stderr, "exit sem close error\n");
   }

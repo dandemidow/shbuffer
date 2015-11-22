@@ -113,7 +113,9 @@ int close_shared_mem(shared_mem_t *shbuf) {
 
 int close_link_shared_mem(shared_mem_t *shbuf) {
   int r;
+  pthread_mutex_lock(shared_protect(shbuf));
   shared_client(shbuf) -=1;
+  pthread_mutex_unlock(shared_protect(shbuf));
   r = close_link_shared_buffer(shbuf);
   free(shbuf);
   return r;
@@ -179,6 +181,7 @@ void wait_shared_client_exit(shared_mem_t *shbuf) {
   clients = shared_client(shbuf);
   pthread_mutex_unlock(shared_protect(shbuf));
   while( clients != 0) {
+    sem_getvalue(shbuf->exit_sem, &clients);
     sem_wait(shbuf->exit_sem);
     pthread_mutex_lock(shared_protect(shbuf));
     clients = shared_client(shbuf);
@@ -192,6 +195,7 @@ void tag_shared_mem(shared_mem_t *shbuf, void *mem, unsigned char tag) {
   pthread_mutex_lock(shared_protect(shbuf));
   curr = shared_block_for(mem);
   set_block_tag(curr, tag);
+//  printf("set mem tag %d\n", tag);
   pthread_mutex_unlock(shared_protect(shbuf));
 }
 
@@ -199,9 +203,11 @@ void tag_shared_mem(shared_mem_t *shbuf, void *mem, unsigned char tag) {
 void *find_tagged_mem(shared_mem_t *shbuf, unsigned char tag) {
   shared_mem_block_t *block = get_first_block(shbuf);
   while ( block ) {
+//    printf("find mem tag %d size %d\n", tag, block->size);
     if ( block->tag == tag ) return (void*)((char*)block + sizeof(shared_mem_block_t));
     block = next_block(shbuf, block);
   }
+//  printf("no mem tag %d\n", tag);
   return NULL;
 }
 

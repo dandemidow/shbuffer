@@ -101,6 +101,7 @@ shared_mem_t *init_link_shared_mem(size_t buf_size, char *name) {
   pthread_mutex_lock(shared_protect(shbuf));
   shared_client(shbuf) +=1;
   shbuf->base = shared_stuff(shbuf)->base;
+  sem_post(shbuf->init_sem);
   pthread_mutex_unlock(shared_protect(shbuf));
   return shbuf;
 }
@@ -175,17 +176,18 @@ int free_shared_mem(shared_mem_t *shbuf, void *mem) {
   return 0;
 }
 
+void wait_shared_client_init(shared_mem_t *shbuf) {
+  while( clients_shared_mem(shbuf) == 0 ) {
+    sem_wait(shbuf->init_sem);
+  }
+}
+
 void wait_shared_client_exit(shared_mem_t *shbuf) {
-  int clients;
-  pthread_mutex_lock(shared_protect(shbuf));
-  clients = shared_client(shbuf);
-  pthread_mutex_unlock(shared_protect(shbuf));
+  int clients = clients_shared_mem(shbuf);
   while( clients != 0) {
-    sem_getvalue(shbuf->exit_sem, &clients);
+//    sem_getvalue(shbuf->exit_sem, &clients);
     sem_wait(shbuf->exit_sem);
-    pthread_mutex_lock(shared_protect(shbuf));
-    clients = shared_client(shbuf);
-    pthread_mutex_unlock(shared_protect(shbuf));
+    clients = clients_shared_mem(shbuf);
   }
 }
 
@@ -217,4 +219,12 @@ char *loc_cast_char(shared_mem_t *shbuf, void *ptr) {
 
 char *glob_cast_char(shared_mem_t *shbuf, void *ptr) {
   return ptr?(shbuf->base + ((char*)ptr - shbuf->addr)):NULL;
+}
+
+int clients_shared_mem(shared_mem_t *shbuf) {
+  int clients;
+  pthread_mutex_lock(shared_protect(shbuf));
+  clients = shared_client(shbuf);
+  pthread_mutex_unlock(shared_protect(shbuf));
+  return clients;
 }

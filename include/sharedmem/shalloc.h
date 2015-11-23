@@ -22,6 +22,7 @@ void shared_cond_init(pthread_cond_t *);
 shared_mem_t *init_shared_mem(size_t buf_size, char *name);
 shared_mem_t *init_link_shared_mem(size_t buf_size, char *name);
 
+void wait_shared_client_init(shared_mem_t *);
 void wait_shared_client_exit(shared_mem_t *);
 int close_shared_mem(shared_mem_t *);
 int close_link_shared_mem(shared_mem_t *);
@@ -31,5 +32,7 @@ int free_shared_mem(shared_mem_t *, void *);
 
 void tag_shared_mem(shared_mem_t *, void *, unsigned char tag);
 void *find_tagged_mem(shared_mem_t *, unsigned char tag);
+
+int clients_shared_mem(shared_mem_t *);
 
 #endif  // _SHAREDMEM_ALLOC_H_

@@ -8,9 +8,11 @@ typedef struct {
   char *addr;
   char *base;
   sem_t *exit_sem;
+  sem_t *init_sem;
   size_t buf_size;
   char *buf_name;
   char *exit_sem_name;
+  char *init_sem_name;
 } shared_mem_t;
 
 int init_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name);

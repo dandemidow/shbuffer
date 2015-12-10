@@ -13,6 +13,7 @@ typedef struct {
   char *base;
   int clients;
   pthread_mutex_t protect;
+  pid_t master_pid;
 } shared_stuff_t;
 
 #define SET_STATE(st, x) if (st) *(st) = (x)
@@ -20,6 +21,7 @@ typedef struct {
 #define shared_stuff(shm) ((shared_stuff_t*)(shm)->addr)
 #define shared_client(shm) ((shared_stuff(shm))->clients)
 #define shared_protect(shm) (&shared_stuff(shm)->protect)
+#define shared_pid(shm) (shared_stuff(shm)->master_pid)
 
 #define shared_block_for(mem) (shared_mem_block_t *)((mem)-sizeof(shared_mem_block_t))
 #define set_block_tag(block, val) (block)->tag = (val)
@@ -92,6 +94,7 @@ shared_mem_t *init_shared_mem(size_t buf_size, char *name, int *state) {
   pthread_mutex_lock(shared_protect(shbuf));
   shared_stuff(shbuf)->base = shbuf->base;
   shared_client(shbuf) = 0;
+  shared_pid(shbuf) = getpid();
   shared_mem_block_t *first = get_first_block(shbuf);
   available_block_on(first);
   set_block_tag(first, 0);
@@ -240,4 +243,8 @@ int clients_shared_mem(shared_mem_t *shbuf) {
     pthread_mutex_unlock(shared_protect(shbuf));
     return clients;
   } return MEM_NULL_PTR;
+}
+
+pid_t master_pid(shared_mem_t *shbuf) {
+  return shared_pid(shbuf);
 }

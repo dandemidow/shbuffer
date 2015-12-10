@@ -36,5 +36,6 @@ void tag_shared_mem(shared_mem_t *, void *, unsigned char tag);
 void *find_tagged_mem(shared_mem_t *, unsigned char tag);
 
 int clients_shared_mem(shared_mem_t *);
+pid_t master_pid(shared_mem_t *shbuf);
 
 #endif  // _SHAREDMEM_ALLOC_H_

@@ -123,7 +123,8 @@ int close_shared_buffer(shared_mem_t *shm) {
 }
 
 int close_link_shared_buffer(shared_mem_t *shm) {
-  close_shared_core(shm);
+  int err = close_shared_core(shm);
+  if ( err < 0 ) return err;
   sem_post(shm->exit_sem);
   free(shm->exit_sem_name);
   free(shm->init_sem_name);

@@ -20,7 +20,7 @@ typedef struct {
 
 int main () {
   printf("shared memory read\n");
-  shared_mem_t *mem = init_link_shared_mem(1024, "my_buf");
+  shared_mem_t *mem = init_link_shared_mem(1024, "my_buf", NULL);
 
   int i;
   pre_t *fbl = (pre_t *)find_tagged_mem(mem, 1);

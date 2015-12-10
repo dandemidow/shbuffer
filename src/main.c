@@ -21,7 +21,7 @@ typedef struct {
 
 int main () {
   printf("shared memory test\n");
-  shared_mem_t *mem = init_shared_mem(1024, "my_buf");
+  shared_mem_t *mem = init_shared_mem(1024, "my_buf", NULL);
 
   int i=0;
   pre_t *pre = (pre_t*)alloc_shared_mem(mem, sizeof(pre_t));

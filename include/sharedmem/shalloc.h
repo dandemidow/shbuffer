@@ -5,6 +5,8 @@
 
 #include "sharedmem/buffer.h"
 
+#define MEM_NULL_PTR -100
+
 typedef struct {
   unsigned char available;
   unsigned char tag;
@@ -19,8 +21,8 @@ inline char *glob_cast_char(shared_mem_t *shbuf, void *ptr);
 void shared_mutex_init(pthread_mutex_t *);
 void shared_cond_init(pthread_cond_t *);
 
-shared_mem_t *init_shared_mem(size_t buf_size, char *name);
-shared_mem_t *init_link_shared_mem(size_t buf_size, char *name);
+shared_mem_t *init_shared_mem(size_t buf_size, char *name, int *state);
+shared_mem_t *init_link_shared_mem(size_t buf_size, char *name, int *state);
 
 void wait_shared_client_init(shared_mem_t *);
 void wait_shared_client_exit(shared_mem_t *);

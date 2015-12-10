@@ -15,6 +15,8 @@ typedef struct {
   pthread_mutex_t protect;
 } shared_stuff_t;
 
+#define SET_STATE(st, x) if (st) *(st) = (x)
+
 #define shared_stuff(shm) ((shared_stuff_t*)(shm)->addr)
 #define shared_client(shm) ((shared_stuff(shm))->clients)
 #define shared_protect(shm) (&shared_stuff(shm)->protect)
@@ -77,13 +79,16 @@ void shared_cond_init(pthread_cond_t *cond) {
   pthread_cond_init(cond, &cta);
 }
 
-shared_mem_t *init_shared_mem(size_t buf_size, char *name) {
+shared_mem_t *init_shared_mem(size_t buf_size, char *name, int *state) {
+  int err;
   shared_mem_t *shbuf = malloc(sizeof(shared_mem_t));
-  init_shared_buffer(shbuf, buf_size, name);
+  if ( (err = init_shared_buffer(shbuf, buf_size, name)) < 0 ) {
+    free(shbuf);
+    SET_STATE(state, err);
+    return NULL;
+  }
   shbuf->base = shbuf->addr;
-
   shared_mutex_init(shared_protect(shbuf));
-
   pthread_mutex_lock(shared_protect(shbuf));
   shared_stuff(shbuf)->base = shbuf->base;
   shared_client(shbuf) = 0;
@@ -92,33 +97,43 @@ shared_mem_t *init_shared_mem(size_t buf_size, char *name) {
   set_block_tag(first, 0);
   first->size = shbuf->buf_size - sizeof(shared_mem_block_t);
   pthread_mutex_unlock(shared_protect(shbuf));
+  SET_STATE(state, BUF_SUCCESS);
   return shbuf;
 }
 
-shared_mem_t *init_link_shared_mem(size_t buf_size, char *name) {
+shared_mem_t *init_link_shared_mem(size_t buf_size, char *name, int *state) {
+  int err;
   shared_mem_t *shbuf = malloc(sizeof(shared_mem_t));
-  init_link_shared_buffer(shbuf, buf_size, name);
+  if ( (err = init_link_shared_buffer(shbuf, buf_size, name)) < 0 ) {
+    free(shbuf);
+    SET_STATE(state, err);
+    return NULL;
+  }
   pthread_mutex_lock(shared_protect(shbuf));
   shared_client(shbuf) +=1;
   shbuf->base = shared_stuff(shbuf)->base;
   sem_post(shbuf->init_sem);
   pthread_mutex_unlock(shared_protect(shbuf));
+  SET_STATE(state, BUF_SUCCESS);
   return shbuf;
 }
 
 int close_shared_mem(shared_mem_t *shbuf) {
+  if ( !shbuf ) return MEM_NULL_PTR;
   int r = close_shared_buffer(shbuf);
   free(shbuf);
   return r;
 }
 
 int close_link_shared_mem(shared_mem_t *shbuf) {
-  int r;
-  pthread_mutex_lock(shared_protect(shbuf));
-  shared_client(shbuf) -=1;
-  pthread_mutex_unlock(shared_protect(shbuf));
-  r = close_link_shared_buffer(shbuf);
-  free(shbuf);
+  int r = MEM_NULL_PTR;
+  if ( shbuf ) {
+    pthread_mutex_lock(shared_protect(shbuf));
+    shared_client(shbuf) -=1;
+    pthread_mutex_unlock(shared_protect(shbuf));
+    r = close_link_shared_buffer(shbuf);
+    free(shbuf);
+  }
   return r;
 }
 
@@ -173,7 +188,7 @@ int free_shared_mem(shared_mem_t *shbuf, void *mem) {
     available_block_on(curr);
 //  log_shared_block(shbuf);
   pthread_mutex_unlock(shared_protect(shbuf));
-  return 0;
+  return BUF_SUCCESS;
 }
 
 void wait_shared_client_init(shared_mem_t *shbuf) {
@@ -185,7 +200,6 @@ void wait_shared_client_init(shared_mem_t *shbuf) {
 void wait_shared_client_exit(shared_mem_t *shbuf) {
   int clients = clients_shared_mem(shbuf);
   while( clients != 0) {
-//    sem_getvalue(shbuf->exit_sem, &clients);
     sem_wait(shbuf->exit_sem);
     clients = clients_shared_mem(shbuf);
   }
@@ -197,7 +211,6 @@ void tag_shared_mem(shared_mem_t *shbuf, void *mem, unsigned char tag) {
   pthread_mutex_lock(shared_protect(shbuf));
   curr = shared_block_for(mem);
   set_block_tag(curr, tag);
-//  printf("set mem tag %d\n", tag);
   pthread_mutex_unlock(shared_protect(shbuf));
 }
 
@@ -205,11 +218,9 @@ void tag_shared_mem(shared_mem_t *shbuf, void *mem, unsigned char tag) {
 void *find_tagged_mem(shared_mem_t *shbuf, unsigned char tag) {
   shared_mem_block_t *block = get_first_block(shbuf);
   while ( block ) {
-//    printf("find mem tag %d size %d\n", tag, block->size);
     if ( block->tag == tag ) return (void*)((char*)block + sizeof(shared_mem_block_t));
     block = next_block(shbuf, block);
   }
-//  printf("no mem tag %d\n", tag);
   return NULL;
 }
 
@@ -222,9 +233,11 @@ char *glob_cast_char(shared_mem_t *shbuf, void *ptr) {
 }
 
 int clients_shared_mem(shared_mem_t *shbuf) {
-  int clients;
-  pthread_mutex_lock(shared_protect(shbuf));
-  clients = shared_client(shbuf);
-  pthread_mutex_unlock(shared_protect(shbuf));
-  return clients;
+  if ( shbuf ) {
+    int clients;
+    pthread_mutex_lock(shared_protect(shbuf));
+    clients = shared_client(shbuf);
+    pthread_mutex_unlock(shared_protect(shbuf));
+    return clients;
+  } return MEM_NULL_PTR;
 }

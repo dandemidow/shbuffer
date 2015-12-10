@@ -3,6 +3,17 @@
 
 #include <semaphore.h>
 
+#define BUF_SUCCESS 0
+#define BUF_MMAP_ERR -1
+#define BUF_INIT_ISEM_ERR -2
+#define BUF_INIT_ESEM_ERR -3
+#define BUF_SHM_OPEN_ERR -4
+#define BUF_SHM_TRUNC_ERR -5
+#define BUF_EXIT_ISEM_ERR -6
+#define BUF_EXIT_ESEM_ERR -7
+#define BUF_SHM_CLOSE_ERR -8
+#define BUF_UNMMAP_ERR -9
+
 typedef struct {
   int shm_fd;
   char *addr;

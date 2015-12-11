@@ -123,6 +123,7 @@ shared_mem_t *init_link_shared_mem(size_t buf_size, char *name, int *state) {
 
 int close_shared_mem(shared_mem_t *shbuf) {
   if ( !shbuf ) return MEM_NULL_PTR;
+  shared_pid(shbuf) = 0;
   int r = close_shared_buffer(shbuf);
   free(shbuf);
   return r;

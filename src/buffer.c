@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-static char *get_sem_name(char *name, char *semname) {
+static char *get_sem_name(const char *name, const char *semname) {
   char *sem_name = malloc(strlen(name) + strlen(semname)+2);
   sem_name[0] = '/';
   sem_name[1] = '\0';
@@ -19,7 +19,7 @@ static char *get_sem_name(char *name, char *semname) {
   return sem_name;
 }
 
-static void init_shared_core(shared_mem_t *shm, size_t buf_size, char *name) {
+static void init_shared_core(shared_mem_t *shm, size_t buf_size, const char *name) {
   shm->exit_sem_name = get_sem_name(name, "_sem_e");
   shm->init_sem_name = get_sem_name(name, "_sem_i");
   shm->buf_size = buf_size;
@@ -51,7 +51,7 @@ static sem_t *init_shared_sem(char *sem_name) {
   return sem;
 }
 
-int init_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name) {
+int init_shared_buffer(shared_mem_t *shm, size_t buf_size, const char *name) {
   init_shared_core(shm, buf_size, name);
 
   if ( (shm->init_sem = init_shared_sem(shm->init_sem_name)) == NULL ) {
@@ -72,7 +72,7 @@ int init_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name) {
   return init_mmap_core(shm);
 }
 
-int init_link_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name) {
+int init_link_shared_buffer(shared_mem_t *shm, size_t buf_size, const char *name) {
   init_shared_core(shm, buf_size, name);
 
   if ( (shm->exit_sem = sem_open(shm->exit_sem_name, 0)) == SEM_FAILED ) {
@@ -90,11 +90,11 @@ int init_link_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name) {
   return init_mmap_core(shm);
 }
 
-void *shared_buffer(shared_mem_t *shm) {
+void *shared_buffer(const shared_mem_t *const shm) {
   return (void*)shm->addr;
 }
 
-static int close_shared_core(shared_mem_t *shm) {
+static int close_shared_core(const shared_mem_t *const shm) {
   if ( munmap(shm->addr, shm->buf_size) < 0 ) {
     return BUF_UNMMAP_ERR;
   }
@@ -105,7 +105,7 @@ static int close_shared_core(shared_mem_t *shm) {
   return BUF_SUCCESS;
 }
 
-int close_shared_buffer(shared_mem_t *shm) {
+int close_shared_buffer(const shared_mem_t *const shm) {
   int err = close_shared_core(shm);
   if ( err < 0 ) return err;
   shm_unlink(shm->buf_name);
@@ -122,7 +122,7 @@ int close_shared_buffer(shared_mem_t *shm) {
   return BUF_SUCCESS;
 }
 
-int close_link_shared_buffer(shared_mem_t *shm) {
+int close_link_shared_buffer(const shared_mem_t *const shm) {
   int err = close_shared_core(shm);
   if ( err < 0 ) return err;
   sem_post(shm->exit_sem);

@@ -26,13 +26,13 @@ typedef struct {
   char *init_sem_name;
 } shared_mem_t;
 
-int init_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name);
-int init_link_shared_buffer(shared_mem_t *shm, size_t buf_size, char *name);
+int init_shared_buffer(shared_mem_t *, size_t buf_size, const char *name);
+int init_link_shared_buffer(shared_mem_t *, size_t buf_size, const char *name);
 
-void *shared_buffer(shared_mem_t *shm);
+void *shared_buffer(const shared_mem_t *const);
 
-int close_shared_buffer(shared_mem_t *shm);
-int close_link_shared_buffer(shared_mem_t *shm);
+int close_shared_buffer(const shared_mem_t *const);
+int close_link_shared_buffer(const shared_mem_t *const);
 
 
 #endif  // _SHAREDMEM_BUFFER_H_

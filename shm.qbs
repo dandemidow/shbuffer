@@ -28,14 +28,7 @@ Project {
     CxxApplication {
         name: "test"
         cpp.staticLibraries: [ "sharedmem" ]
-        cpp.dynamicLibraries: [ "rt", "pthread" ]
-        files: "src/main.c"
-    }
-
-    CxxApplication {
-        name: "reader"
-        cpp.staticLibraries: [ "sharedmem" ]
-        cpp.dynamicLibraries: [ "rt", "pthread" ]
-        files: "src/reader.c"
+        cpp.dynamicLibraries: [ "rt", "pthread", "check" ]
+        files: "src/tst/tst_main.c"
     }
 }

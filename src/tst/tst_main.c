@@ -93,14 +93,17 @@ void *test_read_write_reader(void *arg) {
       *ret = -1;
       break;
     }
-    (*ret)++;
 
     test_t *ptr = locl_cast(test_t, mem, fbl->read);
     ck_assert_ptr_ne(ptr, NULL);
 
     fbl->read = ptr->next;
-    if (arg)
+    if (0)
       printf("test string %s, %d, %d\n", ptr->name, ptr->number, ptr->second);
+    ck_assert_str_eq(ptr->name, "hello!");
+    ck_assert_int_eq(ptr->number, *ret);
+    ck_assert_int_eq(ptr->second, *(int*)(arg) - *ret);
+    (*ret)++;
     err = free_shared_mem(mem, ptr);
     ck_assert_int_eq(err, 0);
     pthread_mutex_unlock(&fbl->mutex);
@@ -115,7 +118,7 @@ START_TEST(test_read_write)
   int count = 100;
   pthread_create(&wr, NULL, test_read_write_writer, &count);
   usleep(1000);
-  pthread_create(&rd, NULL, test_read_write_reader, NULL);
+  pthread_create(&rd, NULL, test_read_write_reader, &count);
 
   int *rd_count = NULL;
   int *wr_count = NULL;

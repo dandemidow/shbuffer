@@ -4,6 +4,7 @@ import "CxxApplication.qbs" as CxxApplication
 
 Project {
     CxxStaticLibrary {
+        id: lib
         name: "sharedmem"
         files: [
             "src/shalloc.c",
@@ -27,6 +28,7 @@ Project {
 
     CxxApplication {
         name: "test"
+        cpp.libraryPaths: [ lib.buildDirectory ]
         cpp.staticLibraries: [ "sharedmem" ]
         cpp.dynamicLibraries: [ "rt", "pthread", "check" ]
         files: "src/tst/tst_main.c"

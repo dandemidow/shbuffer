@@ -188,8 +188,7 @@ void *test_client_count_consumer(void *arg) {
 START_TEST(test_client_count)
 {
   pthread_t wr, rd;
-  int count = 100;
-  pthread_create(&wr, NULL, test_client_count_producer, &count);
+  pthread_create(&wr, NULL, test_client_count_producer, NULL);
   pthread_create(&rd, NULL, test_client_count_consumer, NULL);
 
   pthread_join(rd, NULL);
@@ -210,7 +209,6 @@ Suite *sharedmem_suite(void) {
     tcase_add_test(tc_core, test_client_count);
 
     suite_add_tcase(s, tc_core);
-
     return s;
 }
 

@@ -29,6 +29,12 @@ typedef struct {
 #define available_block_on(block) (block)->available = 1;
 #define available_block_off(block) (block)->available = 0;
 
+#ifdef DEBUG
+#define DBG(x, ...) std::printf("[HTTPClient : DBG]"x"\r\n", ##__VA_ARGS__);
+#else
+#define DBG(x, ...)
+#endif
+
 static shared_mem_block_t *get_first_block(const shared_mem_t *const shbuf) {
   return (shared_mem_block_t*)(shbuf->addr + sizeof(shared_stuff_t));
 }
@@ -58,18 +64,36 @@ static shared_mem_block_t *prev_block(
 }
 
 // log log log
+static int count_free_mem(shared_mem_t *shbuf) {
+  shared_mem_block_t *block = get_first_block(shbuf);
+  int free_count = 0;
+  DBG("------- %d\n", shbuf->buf_size);
+  while ( block ) {
+    if ( block->available ) free_count += block->size;
+    block = next_block(shbuf, block);
+  }
+  DBG("free memory: %d\n", free_count);
+  DBG("-------\n");
+}
+
 static void log_shared_block(shared_mem_t *shbuf) {
   shared_mem_block_t *block = get_first_block(shbuf);
-  printf("------- %d\n", shbuf->buf_size);
+  DBG("------- %d\n", shbuf->buf_size);
   while ( block ) {
-    printf("block place:%d, available:%d, size:%d\n",
+    DBG("block place:%d, available:%d, size:%d\n",
            (size_t)((char*)block - shbuf->addr),
            block->available,
            block->size);
+    if ((int)(block->size) < 0) {
+      DBG("block error %d\n", block->size);
+      return;
+    }
     block = next_block(shbuf, block);
+    DBG("next block: %08x\n", block);
   }
-  printf("-------\n");
+  DBG("-------\n");
 }
+// end log
 
 void shared_mutex_init(pthread_mutex_t *mtx) {
   pthread_mutexattr_t mta;
@@ -151,8 +175,10 @@ static void insert_block(shared_mem_block_t *block, int size) {
   available_block_off(block);
   set_block_tag(block, 0);
   shared_mem_block_t *nblk = next_block(NULL, block);
-  available_block_on(nblk);
-  set_block_size(nblk, old_size - size - sizeof(shared_mem_block_t));
+  if ( old_size > size ) {
+    available_block_on(nblk);
+    set_block_size(nblk, old_size - size - sizeof(shared_mem_block_t));
+  }
 }
 
 static shared_mem_block_t *find_shared_block(
@@ -168,18 +194,25 @@ static shared_mem_block_t *find_shared_block(
 }
 
 void *alloc_shared_mem(const shared_mem_t *const shbuf, size_t size) {
+  DBG("alloc mem %d\n", size);
   shared_mem_block_t *block;
   pthread_mutex_lock(shared_protect(shbuf));
   block = find_shared_block(shbuf, size);
   if ( block ) {
+    DBG("find block %08x\n", block);
     insert_block(block, size);
     pthread_mutex_unlock(shared_protect(shbuf));
-//    log_shared_block(shbuf);
+#ifdef DEBUG
+    log_shared_block(shbuf);
+    count_free_mem(shbuf);
+#endif
     return (((void*)block) + sizeof(shared_mem_block_t));
   }
   pthread_mutex_unlock(shared_protect(shbuf));
-//  printf("not enough memory\n");
-//  log_shared_block(shbuf);
+#ifdef DEBUG
+  DBG("not enough memory\n");
+  log_shared_block(shbuf);
+#endif
   return NULL;
 }
 
@@ -188,15 +221,21 @@ int free_shared_mem(const shared_mem_t *const shbuf, void *mem) {
   shared_mem_block_t *curr = shared_block_for(mem);
   shared_mem_block_t *prev = prev_block(shbuf, curr);
   shared_mem_block_t *next = next_block(shbuf, curr);
-//  printf("prev av:%d, size:%d\n", prev->available, prev->size);
-//  printf("next av:%d, size:%d\n", next->available, next->size);
+#ifdef DEBUG
+  DBG("free mem %d\n", curr->size);
+  DBG("prev av:%d, size:%d\n", prev->available, prev->size);
+  DBG("next av:%d, size:%d\n", next->available, next->size);
+#endif
   if (next && next->available)
     set_block_size(curr, curr->size + next->size + sizeof(shared_mem_block_t));
   if (prev && prev->available)
     set_block_size(prev, prev->size + curr->size + sizeof(shared_mem_block_t));
   else
     available_block_on(curr);
-//  log_shared_block(shbuf);
+#ifdef DEBUG
+  log_shared_block(shbuf);
+  count_free_mem(shbuf);
+#endif
   pthread_mutex_unlock(shared_protect(shbuf));
   return BUF_SUCCESS;
 }

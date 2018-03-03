@@ -36,12 +36,13 @@ void *test_read_write_writer(void *arg) {
   shared_mutex_init(&pre->mutex);
   shared_cond_init(&pre->cond);
   pre->active = 1;
-  test_t *last;
+  test_t *last = NULL;
 
   for ( *ret=0; *ret<*(int*)(arg); (*ret)++) {
     err = pthread_mutex_lock(&pre->mutex);
     ck_assert_int_eq(err, 0);
     test_t *tst = (test_t*)alloc_shared_mem(mem, sizeof(test_t));
+    memset(tst, 0, sizeof(test_t));
     ck_assert_ptr_ne(tst, NULL);
     strcpy(tst->name, "hello!");
     tst->number = 0+*ret;

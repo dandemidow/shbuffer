@@ -13,8 +13,8 @@ typedef struct {
   unsigned size;
 } shared_mem_block_t;
 
-inline char *loc_cast_char(const shared_mem_t *const shbuf, void *ptr);
-inline char *glob_cast_char(const shared_mem_t *const shbuf, void *ptr);
+char *loc_cast_char(const shared_mem_t *const shbuf, void *ptr);
+char *glob_cast_char(const shared_mem_t *const shbuf, void *ptr);
 #define locl_cast(type, shbuf, ptr) ((type*)(loc_cast_char(shbuf, ptr)))
 #define glob_cast(type, shbuf, ptr) ((type*)(glob_cast_char(shbuf, ptr)))
 

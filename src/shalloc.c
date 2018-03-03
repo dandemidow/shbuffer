@@ -63,6 +63,7 @@ static shared_mem_block_t *prev_block(
   return NULL;
 }
 
+#if defined(DEBUG)
 // log log log
 static int count_free_mem(shared_mem_t *shbuf) {
   shared_mem_block_t *block = get_first_block(shbuf);
@@ -94,6 +95,7 @@ static void log_shared_block(shared_mem_t *shbuf) {
   DBG("-------\n");
 }
 // end log
+#endif
 
 void shared_mutex_init(pthread_mutex_t *mtx) {
   pthread_mutexattr_t mta;
